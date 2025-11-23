@@ -346,6 +346,12 @@ efi_memprobe_internal(void)
 	status = BS->GetMemoryMap(&siz, NULL, &mapkey, &mmsiz, &mmver);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		panic("cannot get the size of memory map");
+	/*
+	 * Allocate extra space for the memory map as per UEFI spec.
+	 * The memory map can grow between calls due to allocations,
+	 * so we add space for additional descriptors.
+	 */
+	siz += 8 * mmsiz;
 	mm = alloc(siz);
 	status = BS->GetMemoryMap(&siz, mm, &mapkey, &mmsiz, &mmver);
 	if (status != EFI_SUCCESS)
