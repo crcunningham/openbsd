@@ -33,12 +33,19 @@
 
 #include "stand.h"
 
+int panic_started;
+
 __dead void
 panic(const char *fmt, ...)
 {
 	extern void closeall(void);
 	va_list ap;
 	static int paniced;
+#ifdef EFI_DEBUG
+	static int panic_waited;
+#endif
+
+	panic_started = 1;
 
 	if (!paniced) {
 		paniced = 1;
@@ -49,6 +56,14 @@ panic(const char *fmt, ...)
 	vprintf(fmt, ap);
 	printf("\n");
 	va_end(ap);
+
+#ifdef EFI_DEBUG
+	if (!panic_waited) {
+		panic_waited = 1;
+		printf("Press any key to reboot\n");
+		getchar();
+	}
+#endif
 	_rtt();
 	/*NOTREACHED*/
 }

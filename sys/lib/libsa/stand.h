@@ -143,6 +143,7 @@ void	twiddle(void);
 void	getln(char *, size_t);
 __dead void	panic(const char *, ...) __attribute__((noreturn));
 __dead void	_rtt(void) __attribute__((noreturn));
+extern int	panic_started;
 #define	bzero(s,n)	((void)memset((s),0,(n)))
 #define bcmp(s1,s2,n)	(memcmp((s2),(s1),(n)))
 #define	bcopy(s1,s2,n)	((void)memmove((s2),(s1),(n)))

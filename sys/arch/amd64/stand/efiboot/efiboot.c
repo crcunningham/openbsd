@@ -158,15 +158,14 @@ efi_cleanup(void)
 	int		 retry;
 	EFI_STATUS	 status;
 
-	/* retry once in case of failure */
-	for (retry = 1; retry >= 0; retry--) {
+	for (retry = 3; retry > 0; retry--) {
 		efi_memprobe_internal();	/* sync the current map */
 		status = BS->ExitBootServices(IH, mmap_key);
 		if (status == EFI_SUCCESS)
-			break;
-		if (retry == 0)
-			panic("ExitBootServices failed (%d)", status);
+			return;
 	}
+
+	panic("ExitBootServices failed (%d)", status);
 }
 
 /***********************************************************************
@@ -346,10 +345,20 @@ efi_memprobe_internal(void)
 	status = BS->GetMemoryMap(&siz, NULL, &mapkey, &mmsiz, &mmver);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		panic("cannot get the size of memory map");
-	mm = alloc(siz);
-	status = BS->GetMemoryMap(&siz, mm, &mapkey, &mmsiz, &mmver);
-	if (status != EFI_SUCCESS)
-		panic("cannot get the memory map");
+	siz += mmsiz * 2;
+
+	for (;;) {
+		UINTN allocsz = siz;
+
+		mm = alloc(allocsz);
+		status = BS->GetMemoryMap(&siz, mm, &mapkey, &mmsiz, &mmver);
+		if (status == EFI_SUCCESS)
+			break;
+		if (status != EFI_BUFFER_TOO_SMALL)
+			panic("cannot get the memory map");
+		free(mm, allocsz);
+		siz += mmsiz * 2;
+	}
 
 	mmap_key = mapkey;
 
@@ -1051,8 +1060,10 @@ void
 _rtt(void)
 {
 #ifdef EFI_DEBUG
-	printf("Hit any key to reboot\n");
-	efi_cons_getc(0);
+	if (!panic_started) {
+		printf("Hit any key to reboot\n");
+		efi_cons_getc(0);
+	}
 #endif
 	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
 	for (;;)
